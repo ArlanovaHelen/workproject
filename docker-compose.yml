@@ -1,0 +1,90 @@
+services:
+  postgres:
+    container_name: postgres_container
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_PASSWORD: 1234
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - .:/var/lib/pgadmin
+
+    ports:
+      - 8080:80
+    restart: unless-stopped
+
+
+  web:
+    container_name: web
+    depends_on:
+      - postgres
+      - redis
+    build:
+        context: .
+        dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+      - DB_NAME=postgres
+      - DEBUG=True
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DB_PORT=5432
+    restart: always
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+    environment:
+      - DB_HOST=postgres_container
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DEBUG=True
+    command: ["python", "manage.py", "migrate"]
+
+    restart: on-failure
+  redis:
+    image: "redis:latest"
+    ports:
+      - "63799:6379"
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - .:/app
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+      - DB_NAME=postgres
+      - DEBUG=True
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DB_PORT=5432
+    command: ["celery", "-A", "workproject.celery1", "worker", "-l", "info", "--beat"]
+    restart: on-failure
+
+
