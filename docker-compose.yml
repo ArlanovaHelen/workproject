@@ -60,7 +60,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=postgres
       - DEBUG=True
-    command: ["gunicorn", "-c", "gunicorn_config.py", "hillel_django.wsgi"]
+    command: ["gunicorn", "-c", "gunicorn_config.py", "workproject.wsgi"]
 
     restart: on-failure
   redis:
